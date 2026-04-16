@@ -1,0 +1,106 @@
+# ===================== 正交验证实验配置 =====================
+# 基于探索性实验，使用单一变量控制验证核心结论
+
+# ===================== API配置 =====================
+api:
+  siliconflow:
+    base_url: "https://api.siliconflow.cn/v1"
+    api_key: ${SILICONFLOW_API_KEY}
+
+# ===================== 模型配置 =====================
+models:
+  qwen14b:
+    name: "Qwen/Qwen3-14B"
+    temperature: 0
+    max_tokens: 4096
+    timeout: 180
+  
+  qwen32b:
+    name: "Qwen/Qwen3-32B"
+    temperature: 0
+    max_tokens: 4096
+    timeout: 180
+
+# ===================== 参数配置（精简版） =====================
+parameter_sets:
+  T0: {temperature: 0.0, top_p: 1.0, description: "确定性生成"}
+  T1: {temperature: 0.3, top_p: 1.0, description: "低随机性"}
+  T2: {temperature: 0.6, top_p: 1.0, description: "中等随机性"}
+  T3: {temperature: 0.9, top_p: 1.0, description: "高随机性"}
+  T4: {temperature: 1.2, top_p: 1.0, description: "极高随机性"}
+
+# ===================== 实验配置 =====================
+experiment:
+  repeat_times: 30  # 每组30次，满足统计要求
+  max_retries: 3
+  retry_delay: 5
+  
+  # 固定条件
+  fixed_scene: "sceneA"
+  fixed_top_p: 1.0
+  
+  # 实验组1：温度影响（单因素实验）
+  # 固定：模型(14B/32B) + 方案2，改变：温度
+  group1_temperature:
+    enabled: true
+    description: "验证温度影响 - 固定模型和方案2，系统改变温度"
+    models: ["qwen14b", "qwen32b"]
+    scheme: "scheme2"
+    temperatures: [0.0, 0.3, 0.6, 0.9, 1.2]
+    sample_size: 30
+  
+  # 实验组2：方案影响（单因素实验）
+  # 固定：模型(14B/32B) + 温度0.3，改变：方案
+  group2_scheme:
+    enabled: true
+    description: "验证方案影响 - 固定模型和温度0.3，系统改变方案"
+    models: ["qwen14b", "qwen32b"]
+    schemes: ["scheme1", "scheme2", "scheme3"]
+    temperature: 0.3
+    sample_size: 30
+  
+  # 实验组3：模型影响（单因素实验）
+  # 固定：方案(1/2/3) + 温度0.3，改变：模型
+  group3_model:
+    enabled: true
+    description: "验证模型影响 - 固定方案和温度0.3，比较14B和32B"
+    models: ["qwen14b", "qwen32b"]
+    schemes: ["scheme1", "scheme2", "scheme3"]
+    temperature: 0.3
+    sample_size: 30
+  
+  # 实验组4：交互效应验证（正交设计）
+  # 选择关键组合验证交互效应
+  group4_interaction:
+    enabled: true
+    description: "验证交互效应 - 正交设计选择关键组合"
+    combinations:
+      - {model: "qwen14b", scheme: "scheme1", temp: 0.0}
+      - {model: "qwen14b", scheme: "scheme2", temp: 0.6}
+      - {model: "qwen14b", scheme: "scheme3", temp: 1.2}
+      - {model: "qwen32b", scheme: "scheme1", temp: 0.6}
+      - {model: "qwen32b", scheme: "scheme2", temp: 1.2}
+      - {model: "qwen32b", scheme: "scheme3", temp: 0.0}
+    sample_size: 30
+
+# ===================== 评价维度配置 =====================
+evaluation_dimensions:
+  - name: "格式合规率"
+    description: "输出是否为有效JSON，结构是否完整（0-100分）"
+  - name: "条目对应率"
+    description: "methods/requirements/criteria条目数是否一致（0-100分）"
+  - name: "需求覆盖率"
+    description: "是否覆盖所有测试需求要点（0-100分）"
+  - name: "测试项有效性"
+    description: "技术可行性、流程完整性、数据合理性（0-100分）"
+  - name: "输出描述质量"
+    description: "清晰度、完整性、充分性、用户阅读感（0-100分）"
+  - name: "无幻觉率"
+    description: "是否编造未提供的参数/地址（0-100分）"
+
+# ===================== 实验次数统计 =====================
+# 实验组1：2模型 × 5温度 = 10种 × 30 = 300次
+# 实验组2：2模型 × 3方案 = 6种 × 30 = 180次
+# 实验组3：2模型 × 3方案 = 6种 × 30 = 180次
+# 实验组4：6种组合 × 30 = 180次
+# 总计：28种配置 × 30 = 840次

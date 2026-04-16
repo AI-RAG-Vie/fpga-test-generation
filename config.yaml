@@ -1,0 +1,175 @@
+# 论文实验主配置文件（修订版V4 - 新增输出描述质量指标）
+
+# ===================== 模型配置 =====================
+models:
+  qwen14b:
+    name: "Qwen3-14B"
+    api_key_env: "SILICON_FLOW_API_KEY"
+    base_url: "https://api.siliconflow.cn/v1"
+    model_name: "Qwen/Qwen3-14B"
+    max_tokens: 4096
+    timeout: 120
+  
+  qwen32b:
+    name: "Qwen3-32B"
+    api_key_env: "SILICON_FLOW_API_KEY"
+    base_url: "https://api.siliconflow.cn/v1"
+    model_name: "Qwen/Qwen3-32B"
+    max_tokens: 4096
+    timeout: 180
+
+  deepseek:
+    name: "DeepSeek"
+    api_key_env: "DeepSeek_API_KEY"
+    base_url: "https://api.deepseek.com/v1"
+    model_name: "deepseek-chat"
+    temperature: 0.0
+    timeout: 60
+
+# ===================== 参数组合配置（12组）=====================
+parameter_sets:
+  # ========== 主实验参数 ==========
+  P1:
+    name: "P1"
+    temperature: 0
+    top_p: 1.0
+    description: "确定性输出（对照）"
+  
+  # ========== Temperature敏感性（固定top_p=1.0）==========
+  P2:
+    name: "P2"
+    temperature: 0.1
+    top_p: 1.0
+    description: "低随机性"
+  
+  P3:
+    name: "P3"
+    temperature: 0.3
+    top_p: 1.0
+    description: "低-中随机性"
+  
+  P4:
+    name: "P4"
+    temperature: 0.5
+    top_p: 1.0
+    description: "中等随机性"
+  
+  P5:
+    name: "P5"
+    temperature: 0.7
+    top_p: 1.0
+    description: "中-高随机性（描述质量最佳）"
+  
+  P6:
+    name: "P6"
+    temperature: 1.0
+    top_p: 1.0
+    description: "默认值（主流模型默认）"
+  
+  P7:
+    name: "P7"
+    temperature: 1.2
+    top_p: 1.0
+    description: "高随机性"
+  
+  # ========== Top_p敏感性（固定temperature=1.0）==========
+  P8:
+    name: "P8"
+    temperature: 1.0
+    top_p: 0.8
+    description: "默认temperature+严格top_p限制"
+  
+  P9:
+    name: "P9"
+    temperature: 1.0
+    top_p: 0.9
+    description: "默认temperature+中等top_p限制"
+  
+  # ========== 交互效应 ==========
+  P10:
+    name: "P10"
+    temperature: 0.5
+    top_p: 0.9
+    description: "中等temperature+中等top_p"
+  
+  P11:
+    name: "P11"
+    temperature: 0.7
+    top_p: 0.9
+    description: "中高temperature+中等top_p（推荐平衡点）"
+  
+  P12:
+    name: "P12"
+    temperature: 1.2
+    top_p: 0.9
+    description: "高temperature+中等top_p"
+
+# ===================== 实验配置 =====================
+experiment:
+  repeat_times: 5
+  result_dir: "./experiment_results"
+  max_retries: 3
+  retry_delay: 5
+  
+  scenes_dir: "./scenes"
+  scenes:
+    - sceneA.yaml
+    - sceneB.yaml
+    - sceneC.yaml
+  
+  # 主实验：3场景 × 3方案 × P1参数 × 2模型 × 5次 = 90次
+  main_experiment:
+    enabled: true
+    scenes: ["sceneA", "sceneB", "sceneC"]
+    schemes: ["scheme1", "scheme2", "scheme3"]
+    models: ["qwen14b", "qwen32b"]
+    param_set: "P1"
+  
+  # 参数敏感性实验：1场景 × 1方案 × 12参数 × 2模型 × 5次 = 120次
+  sensitivity_experiment:
+    enabled: true
+    scene: "sceneA"
+    schemes: ["scheme1"]
+    models: ["qwen14b", "qwen32b"]
+    param_sets: ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "P8", "P9", "P10", "P11", "P12"]
+
+# ===================== 评价维度配置（六维度）=====================
+evaluation_dimensions:
+  - name: "格式合规率"
+    weight: 0.15
+    description: "输出是否为有效JSON，结构是否完整（0-100分）"
+  
+  - name: "条目对应率"
+    weight: 0.10
+    description: "methods/requirements/criteria条目数是否一致（0-100分）"
+  
+  - name: "需求覆盖率"
+    weight: 0.15
+    description: "是否覆盖所有测试需求要点（0-100分）"
+  
+  - name: "测试项有效性"
+    weight: 0.25
+    description: "技术可行性、流程完整性、数据合理性、准则可验证性（0-100分）"
+  
+  - name: "输出描述质量"
+    weight: 0.20
+    description: "清晰度、完整性、充分性、用户阅读感（0-100分）【新增】"
+  
+  - name: "无幻觉率"
+    weight: 0.15
+    description: "是否编造未提供的参数/地址（0-100分）"
+
+# ===================== 综合得分计算公式 =====================
+# 综合得分 = 格式合规率×15% + 条目对应率×10% + 需求覆盖率×15% 
+#          + 测试项有效性×25% + 输出描述质量×20% + 无幻觉率×15%
+
+# ===================== 实验次数统计 =====================
+# 主实验：3场景 × 3方案 × 1参数 × 2模型 × 5次 = 90次
+# 参数敏感性：1场景 × 1方案 × 12参数 × 2模型 × 5次 = 120次
+# 总计：210次
+
+# ===================== 关键发现预期 =====================
+# 1. Temperature=0时：格式合规率高，但输出描述质量低（过于简洁）
+# 2. Temperature=0.7时：输出描述质量最高，格式合规率仍可接受
+# 3. Temperature=1.0时：输出描述质量最高，但格式合规率下降明显
+# 4. 推荐参数：Temperature=0.5-0.7, Top_p=0.9-0.95
